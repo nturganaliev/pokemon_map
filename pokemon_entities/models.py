@@ -1,4 +1,6 @@
 from django.db import models  # noqa F401
+from django.utils import timezone
+from django.utils.timezone import localtime
 
 
 class Pokemon(models.Model):
@@ -23,3 +25,10 @@ class PokemonEntity(models.Model):
 
     def __str__(self):
         return self.pokemon.title
+
+    def is_active(self):
+        now = localtime(timezone.now())
+        if not localtime(self.appeared_at) > now and \
+           not localtime(self.disappeared_at) < now:
+            return True
+        return False
