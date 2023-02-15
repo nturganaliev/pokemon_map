@@ -1,7 +1,7 @@
 import folium
 import json
 
-from django.http import HttpResponseNotFound
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.timezone import localtime
@@ -32,25 +32,30 @@ def add_pokemon(folium_map, lat, lon, image_url=DEFAULT_IMAGE_URL):
 
 
 def show_all_pokemons(request):
-    now = localtime(timezone.now())
-    pokemons = Pokemon.objects.exclude(image__exact='')
+    local_time = localtime()
+    pokemons = Pokemon.objects.all()
+
+    pokemon_entities = PokemonEntity.objects.filter(
+        appeared_at__lt=local_time,
+        disappeared_at__gt=local_time
+    )
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
-    pokemons_on_page = []
 
+    for pokemon_entity in pokemon_entities.all():
+        add_pokemon(
+            folium_map, pokemon_entity.latitude,
+            pokemon_entity.longitude,
+            request.build_absolute_uri(pokemon_entity.pokemon.image.url)
+        )
+
+    pokemons_on_page = []
     for pokemon in pokemons:
-        for pokemon_entity in pokemon.pokemonentity_set.all():
-            if pokemon_entity.is_active():
-                add_pokemon(
-                    folium_map, pokemon_entity.latitude,
-                    pokemon_entity.longitude,
-                    request.build_absolute_uri(pokemon.image.url)
-                )
-                pokemons_on_page.append({
-                    'pokemon_id': pokemon.id,
-                    'img_url': request.build_absolute_uri(pokemon.image.url),
-                    'title_ru': pokemon.title,
-                })
+        pokemons_on_page.append({
+            'pokemon_id': pokemon.id,
+            'img_url': request.build_absolute_uri(pokemon.image.url),
+            'title_ru': pokemon.title,
+        })
 
     return render(request, 'mainpage.html', context={
         'map': folium_map._repr_html_(),
@@ -59,31 +64,47 @@ def show_all_pokemons(request):
 
 
 def show_pokemon(request, pokemon_id):
-    try:
-        pokemon = Pokemon.objects.get(pk=pokemon_id)
-    except Pokemon.DoesNotExist:
-        return HttpResponseNotFound('<h1>Такой покемон не найден</h1>')
+    requested_pokemon = get_object_or_404(Pokemon, id=pokemon_id)
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
-    for pokemon_entity in pokemon.pokemonentity_set.all():
+    for pokemon_entity in requested_pokemon.pokemon_entities.all():
         add_pokemon(
             folium_map,
             pokemon_entity.latitude,
             pokemon_entity.longitude,
-            request.build_absolute_uri(pokemon.image.url)
+            request.build_absolute_uri(requested_pokemon.image.url)
         )
 
-    pokemon = {
-        'pokemon_id': pokemon.id,
-        'img_url': request.build_absolute_uri(pokemon.image.url),
-        'title': pokemon.title,
-        'title_en': pokemon.title_en,
-        'title_jp': pokemon.title_jp,
-        'description': pokemon.description,
-        'next_evolution': pokemon.next_evolution.first(),
-        'previous_evolution': pokemon.previous_evolution
+    pokemons_on_page = {
+        'pokemon_id': requested_pokemon.id,
+        'img_url': request.build_absolute_uri(requested_pokemon.image.url),
+        'title': requested_pokemon.title,
+        'title_en': requested_pokemon.title_en,
+        'title_jp': requested_pokemon.title_jp,
+        'description': requested_pokemon.description,
     }
+    next_evolution_pokemon = requested_pokemon.next_evolutions.first()
+    if next_evolution_pokemon:
+        pokemons_on_page.update({
+                "next_evolution": {
+                    'title': next_evolution_pokemon.title,
+                    'pokemon_id': next_evolution_pokemon.id,
+                    'img_url': request.build_absolute_uri(
+                        next_evolution_pokemon.image.url
+                    )
+                }
+        })
+    if requested_pokemon.previous_evolution:
+        pokemons_on_page.update({
+            "previous_evolution": {
+                'title': requested_pokemon.previous_evolution.title,
+                'pokemon_id': requested_pokemon.previous_evolution.id,
+                'img_url': request.build_absolute_uri(
+                    requested_pokemon.previous_evolution.image.url
+                )
+            }
+        })
 
     return render(request, 'pokemon.html', context={
-        'map': folium_map._repr_html_(), 'pokemon': pokemon
+        'map': folium_map._repr_html_(), 'pokemon': pokemons_on_page
     })

@@ -6,15 +6,30 @@ from django.utils.timezone import localtime
 class Pokemon(models.Model):
     """Покемон"""
     title = models.CharField(max_length=200, verbose_name="название")
-    title_en = models.CharField(max_length=200, verbose_name="английское название", null=True, blank=True)
-    title_jp = models.CharField(max_length=200, verbose_name="японское название", null=True, blank=True)
-    image = models.ImageField(upload_to='images', verbose_name="фото", null=True, blank=True)
-    description = models.TextField(default="", verbose_name="описание", blank=True)
+    title_en = models.CharField(
+        max_length=200,
+        verbose_name="английское название",
+        null=True,
+        blank=True
+    )
+    title_jp = models.CharField(
+        max_length=200,
+        verbose_name="японское название",
+        null=True,
+        blank=True
+    )
+    image = models.ImageField(
+        upload_to='images',
+        verbose_name="фото",
+        null=True,
+        blank=True
+    )
+    description = models.TextField(verbose_name="описание", blank=True)
     previous_evolution = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
         verbose_name="предок",
-        related_name="next_evolution",
+        related_name="next_evolutions",
         null=True,
         blank=True)
 
@@ -26,21 +41,38 @@ class PokemonEntity(models.Model):
     """Объект покемона"""
     latitude = models.FloatField(verbose_name="широта")
     longitude = models.FloatField(verbose_name="долгота")
-    pokemon = models.ForeignKey(Pokemon, verbose_name="покемон", on_delete=models.CASCADE)
+    pokemon = models.ForeignKey(
+        Pokemon,
+        related_name="pokemon_entities",
+        verbose_name="покемон",
+        on_delete=models.CASCADE)
     appeared_at = models.DateTimeField(verbose_name="время_появления")
     disappeared_at = models.DateTimeField(verbose_name="время_исчезновения")
-    level = models.IntegerField(default=1, verbose_name="уровень")
-    health = models.IntegerField(default=1, verbose_name="здоровье")
-    strength = models.IntegerField(default=1, verbose_name="сила")
-    defence = models.IntegerField(default=1, verbose_name="защита")
-    stamina = models.IntegerField(default=1, verbose_name="выносливость")
+    level = models.IntegerField(
+        verbose_name="уровень",
+        blank=True,
+        null=True
+    )
+    health = models.IntegerField(
+        verbose_name="здоровье",
+        blank=True,
+        null=True
+    )
+    strength = models.IntegerField(
+        verbose_name="сила",
+        blank=True,
+        null=True
+    )
+    defence = models.IntegerField(
+        verbose_name="защита",
+        blank=True,
+        null=True
+    )
+    stamina = models.IntegerField(
+        verbose_name="выносливость",
+        blank=True,
+        null=True
+    )
 
     def __str__(self):
         return self.pokemon.title
-
-    def is_active(self):
-        now = localtime(timezone.now())
-        if not localtime(self.appeared_at) > now and \
-           not localtime(self.disappeared_at) < now:
-            return True
-        return False
