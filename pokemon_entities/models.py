@@ -1,6 +1,4 @@
 from django.db import models  # noqa F401
-from django.utils import timezone
-from django.utils.timezone import localtime
 
 
 class Pokemon(models.Model):
@@ -43,7 +41,7 @@ class PokemonEntity(models.Model):
     longitude = models.FloatField(verbose_name="долгота")
     pokemon = models.ForeignKey(
         Pokemon,
-        related_name="pokemon_entities",
+        related_name="entities",
         verbose_name="покемон",
         on_delete=models.CASCADE)
     appeared_at = models.DateTimeField(verbose_name="время_появления")
